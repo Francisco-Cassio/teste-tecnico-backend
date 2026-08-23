@@ -105,3 +105,37 @@ class EndpointsAPITestCase(APITestCase):
         horario.refresh_from_db()
         self.assertEqual(horario.status, Horario.StatusHorario.RESERVADO)
         self.assertEqual(horario.cliente, self.cliente)
+
+    def test_bloquear_criacao_especialista_sem_autenticacao(self):
+        # 1. Pegamos a URL do endpoint de criação de especialista
+        url = reverse('especialista-list')
+
+        # 2. Criamos o "corpo" da requisição (dados do especialista)
+        dados = {
+            "nome": "Dra. Juliana",
+            "especialidade": "Cardiologia",
+            "email": "juliana@clinica.com"
+        }
+
+        # 3. Fazemos a requisição POST sem autenticação. OBS: Não chamamos self.client.force_authenticate() aqui.
+        response = self.client.post(url, dados)
+
+        # 4. A API deve retornar 401 Unauthorized, pois o usuário não está autenticado.
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_bloquear_criacao_especialista_para_cliente_comum(self):
+        url = reverse('especialista-list')
+        dados = {
+            "nome": "Dra. Juliana",
+            "especialidade": "Cardiologia",
+            "email": "juliana@clinica.com"
+        }
+
+        # 1. Autentica o cliente comum
+        self.client.force_authenticate(user=self.cliente)
+
+        # 2. Faz a requisição POST para criar um especialista
+        response = self.client.post(url, dados)
+
+        # 3. A API deve retornar 403 Forbidden, pois o cliente comum não tem permissão para criar especialistas.
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
