@@ -1,8 +1,10 @@
 from datetime import date, time, timedelta
 from django.test import TestCase
-from .models import Especialista, Agenda, Horario
+from rest_framework.test import APITestCase
+from rest_framework import status
+from django.urls import reverse
+from .models import Especialista, Agenda, Horario, Usuario
 from .services import calcular_duracao_vaga, gerar_horarios_para_agenda
-
 
 class ServicesHorariosTestCase(TestCase):
     def setUp(self):
@@ -55,3 +57,51 @@ class ServicesHorariosTestCase(TestCase):
         # Não deve duplicar registros no banco
         self.assertEqual(len(novos_horarios), 0)
         self.assertEqual(Horario.objects.count(), 8)
+
+
+class EndpointsAPITestCase(APITestCase):
+    def setUp(self):
+        # Cria um usuário de teste (cliente)
+        self.cliente = Usuario.objects.create_user(
+            username="paciente1",
+            password="senha123",
+            email="paciente@teste.com",
+            tipo_acesso=Usuario.TipoAcesso.CLIENTE
+        )
+        # Cria um especialista de teste
+        self.especialista = Especialista.objects.create(
+            nome="Dr. Roberto",
+            especialidade="Dermatologia",
+            email="roberto@clinica.com"
+        )
+
+    # Testa a listagem de especialistas
+    def test_listar_especialistas(self):
+        url = reverse('especialista-list')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+
+    def test_agendar_horario(self):
+    # 1. Cria uma agenda e gera horários
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 2],  # Segunda e Quarta
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+
+        gerar_horarios_para_agenda(agenda, date.today(), date.today() + timedelta(days=7))
+        horario = Horario.objects.filter(agenda=agenda, status=Horario.StatusHorario.DISPONIVEL).first()
+        url = reverse('horario-agendar', args=[horario.id])
+
+        # 2. Autentica o cliente e faz a requisição para agendar o horário
+        self.client.force_authenticate(user=self.cliente)
+        response = self.client.post(url)
+
+        # 3. Verifica se o horário foi agendado corretamente
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        horario.refresh_from_db()
+        self.assertEqual(horario.status, Horario.StatusHorario.RESERVADO)
+        self.assertEqual(horario.cliente, self.cliente)
