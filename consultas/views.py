@@ -1,20 +1,24 @@
 from django.shortcuts import render
+from django.db import transaction
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from .models import Usuario, Especialista, Agenda, Horario
 from .serializers import UsuarioSerializer, EspecialistaSerializer, AgendaSerializer, HorarioSerializer
+from .permissions import IsInternoOrReadOnly
 from .services import gerar_horarios_para_agenda
-from django.db import transaction
 from datetime import date, timedelta
 
 class EspecialistaViewSet(viewsets.ModelViewSet):
     queryset = Especialista.objects.all()
     serializer_class = EspecialistaSerializer
+    permission_classes = [IsInternoOrReadOnly]
 
 class AgendaViewSet(viewsets.ModelViewSet):
     queryset = Agenda.objects.all()
     serializer_class = AgendaSerializer
+    permission_classes = [IsInternoOrReadOnly]
 
     def perform_create(self, serializer):
         agenda = serializer.save()
@@ -44,12 +48,9 @@ class HorarioViewSet(viewsets.ModelViewSet):
 
         return queryset
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     @transaction.atomic
     def agendar(self, request, pk=None):
-        if not request.user.is_authenticated:
-            return Response({"detail": "É necessário estar autenticado para agendar."}, status=status.HTTP_401_UNAUTHORIZED)
-
         try:
             horario = Horario.objects.select_for_update().get(pk=pk)
         except Horario.DoesNotExist:
