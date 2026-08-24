@@ -125,9 +125,10 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'API Clínica Consultas',
-    'DESCRIPTION': 'Documentação da API de agendamento de consultas médicas',
+    'TITLE': 'API Clínica Médica - Agendamento de Consultas',
+    'DESCRIPTION': 'Documentação OpenAPI 3.0 dos endpoints de autenticação, especialistas, agendas e consultas.',
     'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 # Configurações do Simple JWT
