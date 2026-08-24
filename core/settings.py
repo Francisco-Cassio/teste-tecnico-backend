@@ -15,12 +15,13 @@ load_dotenv()  # Carrega as variáveis de ambiente do arquivo .env
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY') # Busca a chave do .env. Se não achar, o projeto não roda
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-chave-temporaria-dev') # Busca a chave do .env. Se não achar, o projeto não roda
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'False') == 'True' # Compara a string para retornar um booleano
+DEBUG = os.environ.get('DEBUG', 'True') == 'True' # Compara a string para retornar um booleano
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',') # Pega os hosts do .env e transforma em lista
+allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(',') if host.strip()] # Pega os hosts do .env e transforma em lista
 
 
 # Application definition

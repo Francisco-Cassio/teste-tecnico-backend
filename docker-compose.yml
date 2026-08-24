@@ -26,6 +26,9 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - SECRET_KEY=django-insecure-chave-temporaria-docker-compose-dev
+      - DEBUG=True
+      - ALLOWED_HOSTS=localhost,127.0.0.1,web
       - DB_NAME=clinica_db
       - DB_USER=postgres
       - DB_PASSWORD=postgres
