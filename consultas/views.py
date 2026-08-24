@@ -19,6 +19,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
     serializer_class = AgendaSerializer
     permission_classes = [IsInternoOrReadOnly]
 
+    @transaction.atomic
     def perform_create(self, serializer):
         agenda = serializer.save()
         data_inicio = date.today()
