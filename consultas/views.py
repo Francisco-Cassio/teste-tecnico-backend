@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
-
+    
 from .models import Especialista, Agenda, Horario
 from .serializers import EspecialistaSerializer, AgendaSerializer, HorarioSerializer
 from .permissions import IsInternoOrReadOnly
@@ -19,6 +19,8 @@ from .services import gerar_horarios_para_agenda
     partial_update=extend_schema(summary="Atualizar parcialmente especialista", description="Atualiza campos de um especialista. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir especialista", description="Remove um especialista cadastrado. Requer perfil Interno."),
 )
+
+
 class EspecialistaViewSet(viewsets.ModelViewSet):
     queryset = Especialista.objects.all()
     serializer_class = EspecialistaSerializer
@@ -32,6 +34,8 @@ class EspecialistaViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(summary="Atualizar parcialmente agenda", description="Atualiza campos de uma agenda. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir agenda", description="Remove uma agenda. Requer perfil Interno."),
 )
+
+
 class AgendaViewSet(viewsets.ModelViewSet):
     queryset = Agenda.objects.select_related('especialista').all()
     serializer_class = AgendaSerializer
@@ -60,6 +64,8 @@ class AgendaViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(summary="Atualizar parcialmente horário", description="Atualiza campos de um horário. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir horário", description="Exclui um horário de consulta. Requer perfil Interno."),
 )
+
+
 class HorarioViewSet(viewsets.ModelViewSet):
     queryset = Horario.objects.all()
     serializer_class = HorarioSerializer
