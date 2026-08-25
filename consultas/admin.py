@@ -17,24 +17,33 @@ class UsuarioAdmin(UserAdmin):
 
 @admin.register(Especialista)
 class EspecialistaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'nome', 'especialidade', 'email')
+    list_display = ('id', 'nome', 'especialidade', 'email', 'ativo')
     search_fields = ('nome', 'especialidade', 'email')
-    list_filter = ('especialidade',)
+    list_filter = ('especialidade', 'ativo')
+
+    def get_queryset(self, request):
+        return Especialista.all_objects.all()
 
 
 @admin.register(Agenda)
 class AgendaAdmin(admin.ModelAdmin):
-    list_display = ('id', 'especialista', 'hora_inicio', 'hora_encerramento', 'vagas_por_dia')
+    list_display = ('id', 'especialista', 'hora_inicio', 'hora_encerramento', 'vagas_por_dia', 'ativo')
     search_fields = ('especialista__nome', 'especialista__especialidade')
-    list_filter = ('especialista',)
+    list_filter = ('especialista', 'ativo')
+
+    def get_queryset(self, request):
+        return Agenda.all_objects.all()
 
 
 @admin.register(Horario)
 class HorarioAdmin(admin.ModelAdmin):
-    list_display = ('id', 'get_especialista', 'data', 'hora_inicio', 'hora_encerramento', 'status', 'cliente')
-    list_filter = ('status', 'data', 'agenda__especialista')
+    list_display = ('id', 'get_especialista', 'data', 'hora_inicio', 'hora_encerramento', 'status', 'cliente', 'ativo')
+    list_filter = ('status', 'data', 'agenda__especialista', 'ativo')
     search_fields = ('agenda__especialista__nome', 'cliente__username')
     ordering = ('data', 'hora_inicio')
+
+    def get_queryset(self, request):
+        return Horario.all_objects.all()
 
     @admin.display(description='Especialista')
     def get_especialista(self, obj):
