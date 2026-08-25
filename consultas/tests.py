@@ -418,6 +418,50 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         results_data = res_data.data['results'] if 'results' in res_data.data else res_data.data
         self.assertTrue(all(item['data'] == data_hoje.isoformat() for item in results_data))
 
+    def test_soft_delete_especialista(self):
+        url = reverse('especialista-detail', args=[self.especialista.id])
+        self.client.force_authenticate(user=self.interno)
+        
+        # 1. Faz a requisição de exclusão na API
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # 2. Na API / listagem padrão (objects), o especialista não aparece mais
+        self.assertFalse(Especialista.objects.filter(id=self.especialista.id).exists())
+
+        # 3. No banco de dados (all_objects), o registro continua existindo com ativo=False
+        especialista_inativo = Especialista.all_objects.get(id=self.especialista.id)
+        self.assertFalse(especialista_inativo.ativo)
+
+    def test_soft_delete_agenda_inativa_horarios_disponiveis(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=2
+        )
+        horario = Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=1),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(10, 0),
+            status=Horario.StatusHorario.DISPONIVEL
+        )
+        
+        url = reverse('agenda-detail', args=[agenda.id])
+        self.client.force_authenticate(user=self.interno)
+        response = self.client.delete(url)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+        # Agenda e horário disponível somem da consulta padrão
+        self.assertFalse(Agenda.objects.filter(id=agenda.id).exists())
+        self.assertFalse(Horario.objects.filter(id=horario.id).exists())
+
+        # Mas permanecem no banco para auditoria com ativo=False
+        self.assertFalse(Agenda.all_objects.get(id=agenda.id).ativo)
+        self.assertFalse(Horario.all_objects.get(id=horario.id).ativo)
+
 
 class ConfiguracoesGlobaisTestCase(APITestCase):
     """
