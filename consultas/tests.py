@@ -462,6 +462,83 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         self.assertFalse(Agenda.all_objects.get(id=agenda.id).ativo)
         self.assertFalse(Horario.all_objects.get(id=horario.id).ativo)
 
+    def test_cancelar_agendamento_proprio(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+        horario = Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=2),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.RESERVADO,
+            cliente=self.cliente
+        )
+        url = reverse('horario-cancelar', args=[horario.id])
+        self.client.force_authenticate(user=self.cliente)
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        horario.refresh_from_db()
+        self.assertEqual(horario.status, Horario.StatusHorario.DISPONIVEL)
+        self.assertIsNone(horario.cliente)
+
+    def test_bloquear_cancelamento_de_consulta_de_outro_cliente(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+        horario = Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=2),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.RESERVADO,
+            cliente=self.cliente
+        )
+        outro_cliente = Usuario.objects.create_user(
+            username="outro_paciente_cancelar",
+            password="123",
+            tipo_acesso=Usuario.TipoAcesso.CLIENTE
+        )
+        url = reverse('horario-cancelar', args=[horario.id])
+        self.client.force_authenticate(user=outro_cliente)
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_usuario_interno_pode_cancelar_consulta_de_qualquer_cliente(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+        horario = Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=2),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.RESERVADO,
+            cliente=self.cliente
+        )
+        url = reverse('horario-cancelar', args=[horario.id])
+        self.client.force_authenticate(user=self.interno)
+        response = self.client.post(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        horario.refresh_from_db()
+        self.assertEqual(horario.status, Horario.StatusHorario.DISPONIVEL)
+        self.assertIsNone(horario.cliente)
+
 
 class ConfiguracoesGlobaisTestCase(APITestCase):
     """
