@@ -27,6 +27,13 @@ def gerar_horarios_para_agenda(agenda: Agenda, data_inicio: date, data_fim: date
         agenda.vagas_por_dia
     )
 
+    horarios_existentes = set(
+        Horario.objects.filter(
+            agenda=agenda,
+            data__range=(data_inicio, data_fim)
+        ).values_list('data', 'hora_inicio')
+    )
+
     criar_horarios = []
     data_atual = data_inicio
 
@@ -39,13 +46,7 @@ def gerar_horarios_para_agenda(agenda: Agenda, data_inicio: date, data_fim: date
                 data_cursor += duracao_vaga
                 fim_vaga = data_cursor.time()
 
-                existe_horario = Horario.objects.filter(
-                    agenda=agenda,
-                    data=data_atual,
-                    hora_inicio=inicio_vaga
-                ).exists()
-
-                if not existe_horario:
+                if (data_atual, inicio_vaga) not in horarios_existentes:
                     criar_horarios.append(
                         Horario(
                             agenda=agenda,
