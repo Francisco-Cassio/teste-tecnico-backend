@@ -102,7 +102,7 @@ class HorarioViewSet(viewsets.ModelViewSet):
             horario = (
                 Horario.objects
                 .select_for_update()
-                .select_related('agenda', 'agenda__especialista', 'cliente')
+                .select_related('agenda', 'agenda__especialista')
                 .get(pk=pk)
             )
         except Horario.DoesNotExist:
