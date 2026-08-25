@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
     
-from .models import Especialista, Agenda, Horario
+from .models import Especialista, Agenda, Horario, Usuario
 from .serializers import EspecialistaSerializer, AgendaSerializer, HorarioSerializer
 from .permissions import IsInternoOrReadOnly
 from .services import gerar_horarios_para_agenda
@@ -23,7 +23,7 @@ from .services import gerar_horarios_para_agenda
 
 
 class EspecialistaViewSet(viewsets.ModelViewSet):
-    queryset = Especialista.objects.all()
+    queryset = Especialista.objects.all().order_by('id')
     serializer_class = EspecialistaSerializer
     permission_classes = [IsInternoOrReadOnly]
 
@@ -38,7 +38,7 @@ class EspecialistaViewSet(viewsets.ModelViewSet):
 
 
 class AgendaViewSet(viewsets.ModelViewSet):
-    queryset = Agenda.objects.select_related('especialista').all()
+    queryset = Agenda.objects.select_related('especialista').all().order_by('id')
     serializer_class = AgendaSerializer
     permission_classes = [IsInternoOrReadOnly]
 
@@ -68,7 +68,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
 
 
 class HorarioViewSet(viewsets.ModelViewSet):
-    queryset = Horario.objects.all()
+    queryset = Horario.objects.all().order_by('id')
     serializer_class = HorarioSerializer
     permission_classes = [IsInternoOrReadOnly]
 
@@ -124,5 +124,42 @@ class HorarioViewSet(viewsets.ModelViewSet):
         horario.save()
 
         serializer = self.get_serializer(horario)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Cancelar consulta",
+        description="Cancela um agendamento. O cliente só pode cancelar suas próprias consultas; usuários internos podem cancelar qualquer uma.",
+        request=None,
+        responses={200: HorarioSerializer}
+    )
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @transaction.atomic
+    def cancelar(self, request, pk=None):
+        try:
+            horario = (
+                Horario.objects
+                .select_for_update()
+                .select_related('agenda', 'agenda__especialista')
+                .get(pk=pk)
+            )
+        except Horario.DoesNotExist:
+            return Response({"detail": "Horário não encontrado."}, status=status.HTTP_404_NOT_FOUND)
+        
+        if horario.status != Horario.StatusHorario.RESERVADO:
+            return Response({"detail": "Apenas horários reservados podem ser cancelados."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Compara diretamente pelo ID do cliente (sem precisar de query extra)
+        if request.user.tipo_acesso == Usuario.TipoAcesso.CLIENTE and horario.cliente_id != request.user.id:
+            return Response({"detail": "Você não tem permissão para cancelar a consulta de outro paciente."}, status=status.HTTP_403_FORBIDDEN)
+        
+        agora = timezone.localtime()
+        if horario.data < agora.date() or (horario.data == agora.date() and horario.hora_inicio < agora.time()):
+            return Response({"detail": "Não é possível cancelar consultas que já passaram."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Libera a vaga
+        horario.status = Horario.StatusHorario.DISPONIVEL
+        horario.cliente = None
+        horario.save()
+
+        serializer = self.get_serializer(horario)
         return Response(serializer.data, status=status.HTTP_200_OK)
