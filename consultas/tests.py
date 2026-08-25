@@ -396,3 +396,32 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         self.assertEqual(res_data.status_code, status.HTTP_200_OK)
         results_data = res_data.data['results'] if 'results' in res_data.data else res_data.data
         self.assertTrue(all(item['data'] == data_hoje.isoformat() for item in results_data))
+
+
+class ConfiguracoesGlobaisTestCase(APITestCase):
+    """
+    Testes para configurações gerais do projeto (CORS e Django Admin).
+    """
+    def test_cors_headers_habilitados(self):
+        url = reverse('especialista-list')
+        response = self.client.get(url, HTTP_ORIGIN='http://localhost:5173')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('access-control-allow-origin', response.headers)
+
+    def test_admin_telas_carregam_com_sucesso(self):
+        super_user = Usuario.objects.create_superuser(
+            username='admin_master',
+            email='admin@master.com',
+            password='123'
+        )
+        self.client.force_login(super_user)
+        
+        rotas_admin = [
+            'admin:consultas_usuario_changelist',
+            'admin:consultas_especialista_changelist',
+            'admin:consultas_agenda_changelist',
+            'admin:consultas_horario_changelist',
+        ]
+        for rota in rotas_admin:
+            res = self.client.get(reverse(rota))
+            self.assertEqual(res.status_code, status.HTTP_200_OK)
