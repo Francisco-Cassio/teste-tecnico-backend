@@ -280,7 +280,7 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         )
         horario = Horario.objects.create(
             agenda=agenda,
-            data=date.today(),
+            data=date.today() + timedelta(days=1),  # Horário futuro
             hora_inicio=time(8, 0),
             hora_encerramento=time(9, 0),
             status=Horario.StatusHorario.DISPONIVEL
@@ -305,7 +305,7 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         )
         horario = Horario.objects.create(
             agenda=agenda,
-            data=date.today(),
+            data=date.today() + timedelta(days=1),
             hora_inicio=time(8, 0),
             hora_encerramento=time(9, 0),
             status=Horario.StatusHorario.RESERVADO,
@@ -324,6 +324,27 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data["detail"], "Horário não disponível para agendamento.")
+
+    def test_bloquear_agendamento_em_data_passada(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+        horario_ontem = Horario.objects.create(
+            agenda=agenda,
+            data=date.today() - timedelta(days=1),  # 👈 Ontem
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.DISPONIVEL
+        )
+        url = reverse('horario-agendar', args=[horario_ontem.id])
+        self.client.force_authenticate(user=self.cliente)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("passados", response.data['detail'])
 
     def test_bloquear_agendamento_sem_autenticacao(self):
         agenda = Agenda.objects.create(

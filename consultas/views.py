@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.utils import timezone
 from datetime import date, timedelta
 from rest_framework import viewsets, status
 from rest_framework.response import Response
@@ -110,6 +111,13 @@ class HorarioViewSet(viewsets.ModelViewSet):
 
         if horario.status != Horario.StatusHorario.DISPONIVEL:
             return Response({"detail": "Horário não disponível para agendamento."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agora = timezone.localtime()
+        data_atual = agora.date()
+        horario_data = agora.time()
+        
+        if horario.data < data_atual or (horario.data == data_atual and horario.hora_inicio < horario_data):
+            return Response({"detail": "Não é possível agendar horários passados."}, status=status.HTTP_400_BAD_REQUEST)
 
         horario.status = Horario.StatusHorario.RESERVADO
         horario.cliente = request.user
