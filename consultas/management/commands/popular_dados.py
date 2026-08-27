@@ -65,16 +65,6 @@ class Command(BaseCommand):
                 "is_superuser": False,
                 "first_name": "João",
                 "last_name": "Silva"
-            },
-            {
-                "username": "paciente_maria",
-                "email": "maria.souza@email.com",
-                "password": "senha123",
-                "tipo_acesso": Usuario.TipoAcesso.CLIENTE,
-                "is_staff": False,
-                "is_superuser": False,
-                "first_name": "Maria",
-                "last_name": "Souza"
             }
         ]
 
@@ -260,14 +250,6 @@ class Command(BaseCommand):
             h2.save()
             self.stdout.write(f"   ✓ Consulta reservada: João Silva com {h2.agenda.especialista.nome} em {h2.data.strftime('%d/%m/%Y')} às {h2.hora_inicio.strftime('%H:%M')}.")
 
-        # Agendamento 3: Maria com Dra. Mariana Costa
-        if horarios_futuros_mariana.exists():
-            h3 = horarios_futuros_mariana.first()
-            h3.status = Horario.StatusHorario.RESERVADO
-            h3.cliente = usuarios_criados["paciente_maria"]
-            h3.save()
-            self.stdout.write(f"   ✓ Consulta reservada: Maria Souza com {h3.agenda.especialista.nome} em {h3.data.strftime('%d/%m/%Y')} às {h3.hora_inicio.strftime('%H:%M')}.")
-
         # ---------------------------------------------------------------------
         # Resumo Final
         # ---------------------------------------------------------------------
@@ -284,6 +266,5 @@ class Command(BaseCommand):
         self.stdout.write(self.style.HTTP_INFO("\n🔑 Credenciais de Teste:"))
         self.stdout.write("  • Admin (Interno):     admin / admin123")
         self.stdout.write("  • Recepção (Interno):  recepcao / senha123")
-        self.stdout.write("  • Paciente 1:          paciente_joao / senha123")
-        self.stdout.write("  • Paciente 2:          paciente_maria / senha123\n")
+        self.stdout.write("  • Paciente (Cliente):  paciente_joao / senha123\n")
 
