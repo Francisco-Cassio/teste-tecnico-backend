@@ -1,5 +1,5 @@
 from datetime import date, timedelta
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.pagination import PageNumberPagination
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
     
 from .models import Especialista, Agenda, Horario, Usuario
@@ -95,6 +96,12 @@ class AgendaViewSet(viewsets.ModelViewSet):
         gerar_horarios_para_agenda(agenda, data_inicio, data_fim)
 
 
+class HorarioPagination(PageNumberPagination):
+    page_size = 200
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+
 @extend_schema_view(
     list=extend_schema(
         summary="Listar horários de consulta",
@@ -103,6 +110,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
             OpenApiParameter(name='especialista_id', description='ID do especialista para filtrar horários', required=False, type=OpenApiTypes.INT),
             OpenApiParameter(name='data_consulta', description='Data da consulta (AAAA-MM-DD)', required=False, type=OpenApiTypes.DATE),
             OpenApiParameter(name='status', description='Status do horário (disponivel ou reservado)', required=False, type=OpenApiTypes.STR),
+            OpenApiParameter(name='apenas_futuros', description='Filtrar apenas horários futuros a partir do momento atual', required=False, type=OpenApiTypes.BOOL),
         ]
     ),
     retrieve=extend_schema(summary="Detalhar horário", description="Retorna detalhes de um horário de consulta."),
@@ -114,6 +122,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
 class HorarioViewSet(viewsets.ModelViewSet):
     queryset = Horario.objects.all().order_by('id')
     serializer_class = HorarioSerializer
+    pagination_class = HorarioPagination
     permission_classes = [IsInternoOrReadOnly]
 
     def get_queryset(self):
@@ -122,6 +131,7 @@ class HorarioViewSet(viewsets.ModelViewSet):
         especialista_id = self.request.query_params.get('especialista_id')
         data_consulta = self.request.query_params.get('data_consulta')
         status_param = self.request.query_params.get('status')
+        apenas_futuros = self.request.query_params.get('apenas_futuros')
 
         if especialista_id:
             queryset = queryset.filter(agenda__especialista_id=especialista_id)
@@ -131,6 +141,13 @@ class HorarioViewSet(viewsets.ModelViewSet):
 
         if status_param:
             queryset = queryset.filter(status=status_param)
+
+        if apenas_futuros and apenas_futuros.lower() in ['true', '1']:
+            agora = timezone.localtime()
+            queryset = queryset.filter(
+                models.Q(data__gt=agora.date()) |
+                models.Q(data=agora.date(), hora_inicio__gte=agora.time())
+            )
 
         return queryset
 
@@ -222,5 +239,4 @@ class HorarioViewSet(viewsets.ModelViewSet):
         horario.save()
 
         serializer = self.get_serializer(horario)
-        return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.data, status=status.HTTP_200_OK)

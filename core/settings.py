@@ -106,9 +106,9 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'pt-br'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Sao_Paulo'
 
 USE_I18N = True
 
@@ -128,11 +128,11 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
+    'PAGE_SIZE': 200,
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'API Clínica Médica - Agendamento de Consultas',
+    'TITLE': 'API LunaMed — Agendamento de Consultas',
     'DESCRIPTION': 'Documentação OpenAPI 3.0 dos endpoints de autenticação, especialistas, agendas e consultas.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
