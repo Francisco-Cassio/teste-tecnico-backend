@@ -1,16 +1,64 @@
+from datetime import date, timedelta
 from django.db import transaction
 from django.utils import timezone
-from datetime import date, timedelta
 from rest_framework import viewsets, status
+from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.views import TokenObtainPairView
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiTypes
     
 from .models import Especialista, Agenda, Horario, Usuario
-from .serializers import EspecialistaSerializer, AgendaSerializer, HorarioSerializer
+from .serializers import (
+    EspecialistaSerializer,
+    AgendaSerializer,
+    HorarioSerializer,
+    UsuarioSerializer,
+    CustomTokenObtainPairSerializer,
+    RegistroUsuarioSerializer
+)
 from .permissions import IsInternoOrReadOnly
 from .services import gerar_horarios_para_agenda
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    """View de obtenção de token JWT que retorna também os dados do usuário."""
+    serializer_class = CustomTokenObtainPairSerializer
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Obter dados do usuário autenticado",
+        description="Retorna as informações de perfil do usuário autenticado no momento.",
+        responses={200: UsuarioSerializer}
+    )
+)
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UsuarioSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@extend_schema_view(
+    post=extend_schema(
+        summary="Cadastrar novo paciente",
+        description="Cadastra um novo usuário com perfil de paciente (cliente).",
+        request=RegistroUsuarioSerializer,
+        responses={201: UsuarioSerializer}
+    )
+)
+class RegistroView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegistroUsuarioSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        usuario = serializer.save()
+        return Response(UsuarioSerializer(usuario).data, status=status.HTTP_201_CREATED)
+
 
 @extend_schema_view(
     list=extend_schema(summary="Listar especialistas", description="Retorna a lista de especialistas cadastrados."),
@@ -20,12 +68,11 @@ from .services import gerar_horarios_para_agenda
     partial_update=extend_schema(summary="Atualizar parcialmente especialista", description="Atualiza campos de um especialista. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir especialista", description="Remove um especialista cadastrado. Requer perfil Interno."),
 )
-
-
 class EspecialistaViewSet(viewsets.ModelViewSet):
     queryset = Especialista.objects.all().order_by('id')
     serializer_class = EspecialistaSerializer
     permission_classes = [IsInternoOrReadOnly]
+
 
 @extend_schema_view(
     list=extend_schema(summary="Listar agendas", description="Retorna a lista de agendas de atendimento."),
@@ -35,8 +82,6 @@ class EspecialistaViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(summary="Atualizar parcialmente agenda", description="Atualiza campos de uma agenda. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir agenda", description="Remove uma agenda. Requer perfil Interno."),
 )
-
-
 class AgendaViewSet(viewsets.ModelViewSet):
     queryset = Agenda.objects.select_related('especialista').all().order_by('id')
     serializer_class = AgendaSerializer
@@ -48,6 +93,7 @@ class AgendaViewSet(viewsets.ModelViewSet):
         data_inicio = date.today()
         data_fim = data_inicio + timedelta(days=30)
         gerar_horarios_para_agenda(agenda, data_inicio, data_fim)
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -65,8 +111,6 @@ class AgendaViewSet(viewsets.ModelViewSet):
     partial_update=extend_schema(summary="Atualizar parcialmente horário", description="Atualiza campos de um horário. Requer perfil Interno."),
     destroy=extend_schema(summary="Excluir horário", description="Exclui um horário de consulta. Requer perfil Interno."),
 )
-
-
 class HorarioViewSet(viewsets.ModelViewSet):
     queryset = Horario.objects.all().order_by('id')
     serializer_class = HorarioSerializer
@@ -89,6 +133,22 @@ class HorarioViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(status=status_param)
 
         return queryset
+
+    @extend_schema(
+        summary="Listar minhas consultas",
+        description="Retorna a lista de consultas reservadas pelo usuário autenticado.",
+        responses={200: HorarioSerializer(many=True)}
+    )
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def minhas_consultas(self, request):
+        queryset = (
+            Horario.objects
+            .filter(cliente=request.user, status=Horario.StatusHorario.RESERVADO, ativo=True)
+            .select_related('agenda', 'agenda__especialista', 'cliente')
+            .order_by('data', 'hora_inicio')
+        )
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @extend_schema(
         summary="Agendar consulta",
@@ -162,4 +222,5 @@ class HorarioViewSet(viewsets.ModelViewSet):
         horario.save()
 
         serializer = self.get_serializer(horario)
+        return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -1,10 +1,47 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import Usuario, Especialista, Agenda, Horario
 
 class UsuarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Usuario
         fields = ['id', 'username', 'email', 'tipo_acesso']
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token['username'] = user.username
+        token['email'] = user.email
+        token['tipo_acesso'] = user.tipo_acesso
+        return token
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+        data['user'] = {
+            'id': self.user.id,
+            'username': self.user.username,
+            'email': self.user.email,
+            'tipo_acesso': self.user.tipo_acesso,
+        }
+        return data
+
+
+class RegistroUsuarioSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=6)
+
+    class Meta:
+        model = Usuario
+        fields = ['id', 'username', 'email', 'password']
+
+    def create(self, validated_data):
+        return Usuario.objects.create_user(
+            username=validated_data['username'],
+            email=validated_data.get('email', ''),
+            password=validated_data['password'],
+            tipo_acesso=Usuario.TipoAcesso.CLIENTE
+        )
 
 class EspecialistaSerializer(serializers.ModelSerializer):
     class Meta:
