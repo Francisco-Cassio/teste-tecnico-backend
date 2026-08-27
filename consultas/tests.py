@@ -167,6 +167,35 @@ class AutenticacaoEPerfisAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("access", response.data)
         self.assertIn("refresh", response.data)
+        self.assertIn("user", response.data)
+        self.assertEqual(response.data["user"]["username"], "cliente_teste")
+        self.assertEqual(response.data["user"]["tipo_acesso"], "cliente")
+
+    def test_me_endpoint_autenticado(self):
+        url = reverse('auth_me')
+        self.client.force_authenticate(user=self.usuario_cliente)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "cliente_teste")
+        self.assertEqual(response.data["tipo_acesso"], "cliente")
+
+    def test_me_endpoint_nao_autenticado(self):
+        url = reverse('auth_me')
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_registro_novo_paciente_sucesso(self):
+        url = reverse('auth_registro')
+        dados = {
+            "username": "novo_paciente",
+            "email": "novo@paciente.com",
+            "password": "senhaSegura123"
+        }
+        response = self.client.post(url, dados, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["username"], "novo_paciente")
+        self.assertEqual(response.data["tipo_acesso"], "cliente")
+        self.assertTrue(Usuario.objects.filter(username="novo_paciente").exists())
 
     def test_obter_token_jwt_credenciais_invalidas(self):
         url = reverse('token_obtain_pair')
@@ -538,6 +567,56 @@ class ConsultasEAgendamentosAPITestCase(APITestCase):
         horario.refresh_from_db()
         self.assertEqual(horario.status, Horario.StatusHorario.DISPONIVEL)
         self.assertIsNone(horario.cliente)
+
+    def test_minhas_consultas_lista_apenas_consultas_do_usuario(self):
+        agenda = Agenda.objects.create(
+            especialista=self.especialista,
+            dias_semana=[0, 1, 2, 3, 4, 5, 6],
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(12, 0),
+            vagas_por_dia=4
+        )
+        outro_paciente = Usuario.objects.create_user(
+            username="outro_paciente_consultas",
+            password="123",
+            email="outro@consultas.com",
+            tipo_acesso=Usuario.TipoAcesso.CLIENTE
+        )
+        # Consulta do cliente
+        Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=2),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.RESERVADO,
+            cliente=self.cliente
+        )
+        # Consulta de outro paciente
+        Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=3),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.RESERVADO,
+            cliente=outro_paciente
+        )
+        # Horário disponível (não deve vir em minhas consultas)
+        Horario.objects.create(
+            agenda=agenda,
+            data=date.today() + timedelta(days=4),
+            hora_inicio=time(8, 0),
+            hora_encerramento=time(9, 0),
+            status=Horario.StatusHorario.DISPONIVEL,
+            cliente=None
+        )
+
+        url = reverse('horario-minhas-consultas')
+        self.client.force_authenticate(user=self.cliente)
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['cliente']['username'], self.cliente.username)
 
 
 class ConfiguracoesGlobaisTestCase(APITestCase):
