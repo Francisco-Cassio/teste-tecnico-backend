@@ -126,8 +126,10 @@ Validação de entrada rigorosa e transformação de saída limpa.
 
 | Método | Endpoint | Descrição | Permissão |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/token/` | Obtenção de par de tokens JWT (Access e Refresh) | Público |
+| `POST` | `/api/token/` | Obtenção de par de tokens JWT e dados do usuário | Público |
 | `POST` | `/api/token/refresh/` | Renovação do Token de Acesso JWT | Público |
+| `GET` | `/api/auth/me/` | Obter dados do usuário autenticado | Requer Autenticação |
+| `POST` | `/api/auth/registro/` | Cadastro de novo usuário paciente (cliente) | Público |
 | `GET` | `/api/especialistas/` | Listar especialistas cadastrados | Aberto / Leitura |
 | `POST` | `/api/especialistas/` | Cadastrar novo especialista | Requer `INTERNO` |
 | `GET` | `/api/especialistas/{id}/` | Detalhes de um especialista | Aberto / Leitura |
@@ -138,6 +140,7 @@ Validação de entrada rigorosa e transformação de saída limpa.
 | `GET` | `/api/agendas/{id}/` | Detalhes de uma agenda | Aberto / Leitura |
 | `DELETE` | `/api/agendas/{id}/` | Exclusão lógica de agenda e horários livres | Requer `INTERNO` |
 | `GET` | `/api/horarios/` | Listar horários de atendimento (com filtros) | Aberto / Leitura |
+| `GET` | `/api/horarios/minhas_consultas/` | Listar consultas reservadas do usuário autenticado | Requer Autenticação |
 | `POST` | `/api/horarios/{id}/agendar/` | Reservar vaga de consulta disponível | Requer Autenticação |
 | `POST` | `/api/horarios/{id}/cancelar/` | Cancelar agendamento e liberar vaga | Requer Autenticação |
 | `GET` | `/api/docs/` | Documentação interativa Swagger UI | Público |
