@@ -2,6 +2,11 @@
 
 API RESTful para gestão de clínicas médicas, especialistas, agendas e agendamento/cancelamento de consultas em tempo real, desenvolvida com **Django REST Framework**, **PostgreSQL** e **Docker**.
 
+> [IMPORTANT !!!]
+>
+> **Interface Frontend (Vue 3):** Este backend possui uma interface web moderna e reativa desenvolvida em **Vue 3 + Tailwind CSS + Pinia** disponível em:
+> 👉 **[Repositório Frontend (Vue 3 + Vite)](https://github.com/Francisco-Cassio/teste-tecnico-frontend)**
+
 ---
 
 ## 🚀 Tecnologias Utilizadas
